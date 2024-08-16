@@ -44,7 +44,37 @@ class App {
     this.addLocalStorage();
     this.seeMarker();
     this.displayMarkerData();
+    console.log(this.arrayData);
+    
   }
+
+
+  formatDateForInput(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate().toString().padStart(2, '0');
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  // Ajoutez cette nouvelle méthode
+  setDefaultDates() {
+    const now = new Date();
+    const dateDebut = document.getElementById("dateDebut");
+    const dateFin = document.getElementById("dateFin");
+
+    if (dateDebut) {
+      dateDebut.value = this.formatDateForInput(now);
+    }
+    if (dateFin) {
+      // Par défaut, on met la date de fin 1 heure après la date de début
+      const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+      dateFin.value = this.formatDateForInput(oneHourLater);
+    }
+  }
+
 
   // Chargement du dom
   loadDom() {
@@ -81,18 +111,12 @@ class App {
     let lat = document.getElementById("lat");
     let long = document.getElementById("long");
     // TODO REMOVE WHEN DONE
-    let title = document.getElementById("title");
-    let description = document.getElementById("description");
-    let dateDebut = document.getElementById("dateDebut");
-    let dateFin = document.getElementById("dateFin");
+
+ 
 
     lat.value = e.lngLat.lat;
     long.value = e.lngLat.lng;
     // TODO REMOVE WHEN DONE
-    title.value = "Default Title";
-    description.value = "Default Description";
-    dateDebut.value = "2023-10-01T14:00";
-    dateFin.value = "2023-10-01T15:00";
 
     if (this.currentMarker == null) {
       this.marker = new mapboxgl.Marker().setLngLat(e.lngLat).addTo(this.map);
@@ -153,20 +177,47 @@ class App {
 
   seeMarker() {
     let markers = this.getStorage();
+    const currentDate = new Date();
+  
     for (const markersPoint of markers) {
-      const marker = new mapboxgl.Marker()
-        .setLngLat([
-          Number(markersPoint.Longitude),
-          Number(markersPoint.Latitude),
-        ])
+      const eventStartDate = new Date(markersPoint.dateDebut);
+      const eventEndDate = new Date(markersPoint.dateFin);
+      let markerColor;
+  
+      // Determine the marker color based on the event date
+      if (eventEndDate < currentDate) {
+        // Event has passed
+        markerColor = '#FF0000'; // Red
+      } else if (eventStartDate <= new Date(currentDate.getTime() + 3 * 24 * 60 * 60 * 1000)) {
+        // Event is within the next 3 days
+        markerColor = '#FFA500'; // Orange
+      } else {
+        // Event is in the future
+        markerColor = '#00FF00'; // Green
+      }
+  
+      // Create a custom marker element
+      const el = document.createElement('div');
+      el.className = 'custom-marker';
+      el.style.backgroundColor = markerColor;
+      el.style.width = '15px';
+      el.style.height = '15px';
+      el.style.borderRadius = '50%';
+      el.style.border = '2px solid #FFFFFF';
+  
+      const marker = new mapboxgl.Marker({
+        element: el,
+        anchor: 'bottom'
+      })
+        .setLngLat([Number(markersPoint.Longitude), Number(markersPoint.Latitude)])
         .setPopup(
           new mapboxgl.Popup().setHTML(
             `<div class="modal-content">
               <div class="modal-header">
-                <h4 class="modal-title ">${markersPoint.Titre}</h4>
+                <h4 class="modal-title">${markersPoint.Titre}</h4>
               </div>
               <div class="modal-body mt-2">
-                <p>Description : ${markersPoint.Description} </p>
+                <p>Description : ${markersPoint.Description}</p>
                 <p>Date de début: ${markersPoint.dateDebut}</p>
                 <p>Date de fin: ${markersPoint.dateFin}</p>
               </div>
@@ -174,7 +225,7 @@ class App {
           )
         )
         .addTo(this.map);
-      
+  
       // Add the marker to the markers array
       this.markersArr.push(marker);
       
@@ -182,7 +233,6 @@ class App {
       this.addMarkerPopup(marker, markersPoint);
     }
   }
-
   // Method to add mouseover event listener to a marker
   addMarkerPopup(marker, markersPoint) {
     const popup = new mapboxgl.Popup({
@@ -197,7 +247,7 @@ class App {
             <h3>${markersPoint.Titre}</h3>
             <p>${markersPoint.dateDebut}</p>
             <p>${markersPoint.dateFin}</p>
-            <p>${markersPoint.Description}</p>
+           
           </div>`
         )
         .addTo(this.map);
